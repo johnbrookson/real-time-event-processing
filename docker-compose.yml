@@ -1,0 +1,126 @@
+
+services:
+  # E-commerce Event Processing Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ecommerce-event-processor
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - LOG_LEVEL=info
+      # Database Configuration
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=ecommerce
+      # RabbitMQ Configuration
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASSWORD=guest
+      - RABBITMQ_QUEUE_ORDER_EVENTS=order_events
+      - RABBITMQ_QUEUE_PAYMENT_EVENTS=payment_events
+      - RABBITMQ_QUEUE_INVENTORY_EVENTS=inventory_events
+      - RABBITMQ_QUEUE_NOTIFICATION_EVENTS=notification_events
+      - RABBITMQ_QUEUE_DEAD_LETTER=dead_letter_queue
+      - RABBITMQ_EXCHANGE_ORDERS=orders_exchange
+      - RABBITMQ_EXCHANGE_DEAD_LETTER=dlx_exchange
+      # Redis Configuration
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # Batch Processing Configuration
+      - BATCH_SIZE=50
+      - BATCH_INTERVAL_SECONDS=30
+      - MAX_BATCH_WAIT_SECONDS=60
+      # Retry Configuration
+      - MAX_RETRY_ATTEMPTS=3
+      - RETRY_DELAY_MS=1000
+      - RETRY_BACKOFF_MULTIPLIER=2
+      - RETRY_MAX_DELAY_MS=30000
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: ecommerce-rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+      - RABBITMQ_DEFAULT_VHOST=/
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+      - rabbitmq-logs:/var/log/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: ecommerce-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=ecommerce
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+  # Redis Cache (optional for future enhancements)
+  redis:
+    image: redis:7-alpine
+    container_name: ecommerce-redis
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+# Named volumes for data persistence
+volumes:
+  postgres-data:
+  rabbitmq-data:
+  rabbitmq-logs:
+  redis-data:
+
+# Custom network for service communication
+networks:
+  ecommerce-network:
+    driver: bridge 
