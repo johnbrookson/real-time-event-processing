@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { Application } from './bootstrap/application';
+import { Application } from './bootstrap/Application';
 
 /**
  * Application Entry Point

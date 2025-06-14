@@ -2,10 +2,11 @@ import { ConfigFactory, AppConfig } from '../shared/infrastructure/config/AppCon
 import { RabbitMQClient } from '../shared/infrastructure/messaging/RabbitMQClient';
 import { BatchProcessor } from '../shared/infrastructure/batch/BatchProcessor';
 import { RetryMechanism } from '../shared/infrastructure/retry/RetryMechanism';
+import { RabbitMQDeadLetterQueueService } from '../shared/infrastructure/retry/DeadLetterQueueService';
 import { ConsoleLogger, Logger } from '../shared/application/logging/logger';
-import { OrderProcessingStrategy } from '../shared/application/patterns/strategy/order-processing-strategy';
-import { NotificationObserver } from '../shared/application/patterns/observer/notification-observer';
-import { EventProcessingService } from './event-processing-service';
+import { OrderProcessingStrategy } from '../shared/application/patterns/strategy/OrderProcessingStrategy';
+import { NotificationObserver } from '../shared/application/patterns/observer/NotificationObserver';
+import { EventProcessingService } from './EventProcessingService';
 
 /**
  * Main Application Bootstrap Class
@@ -19,6 +20,7 @@ export class Application {
   private readonly rabbitMQClient: RabbitMQClient;
   private readonly batchProcessor: BatchProcessor;
   private readonly retryMechanism: RetryMechanism;
+  private readonly dlqService: RabbitMQDeadLetterQueueService;
   private readonly orderProcessingStrategy: OrderProcessingStrategy;
   private readonly notificationObserver: NotificationObserver;
   private readonly eventProcessingService: EventProcessingService;
@@ -34,7 +36,8 @@ export class Application {
     // Initialize infrastructure services
     this.rabbitMQClient = new RabbitMQClient(this.config.rabbitmq, this.logger);
     this.batchProcessor = new BatchProcessor(this.logger, this.config.batch);
-    this.retryMechanism = new RetryMechanism(this.logger, this.config.retry);
+    this.dlqService = new RabbitMQDeadLetterQueueService(this.logger, this.config.dlq);
+    this.retryMechanism = new RetryMechanism(this.logger, this.config.retry, this.dlqService);
 
     // Initialize application services
     this.orderProcessingStrategy = new OrderProcessingStrategy(this.logger);
@@ -46,6 +49,7 @@ export class Application {
       this.batchProcessor,
       this.notificationObserver,
       this.rabbitMQClient,
+      this.retryMechanism,
       this.config
     );
   }
@@ -59,6 +63,9 @@ export class Application {
 
       // Connect to RabbitMQ
       await this.rabbitMQClient.connect();
+
+      // Initialize Dead Letter Queue Service
+      await this.dlqService.initialize();
 
       // Register strategies with batch processor
       this.batchProcessor.registerStrategy('OrderCreated', this.orderProcessingStrategy);

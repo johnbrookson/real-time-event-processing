@@ -5,6 +5,6 @@
  * and main application bootstrapping components.
  */
 
-export { DependencyContainer } from './dependency-container';
-export { Application } from './application';
-export { EventProcessingService, EventProcessingSubject, CompositeMessageHandler } from './event-processing-service'; 
+export { DependencyContainer } from './DependencyContainer';
+export { Application } from './Application';
+export { EventProcessingService, EventProcessingSubject, CompositeMessageHandler } from './EventProcessingService'; 

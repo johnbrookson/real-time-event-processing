@@ -1,7 +1,7 @@
 {
   "name": "ecommerce-event-processor",
-  "version": "1.0.0",
-  "description": "Real-time event processing system for e-commerce using Clean Architecture + DDD + SOLID",
+  "version": "0.0.1",
+  "description": "Real-time event processing system for e-commerce",
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc",

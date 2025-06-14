@@ -1,6 +1,7 @@
 // Conteúdo do arquivo retry-mechanism.ts 
 
-import { Logger } from '@shared/application/logging/logger';
+import { Logger } from '../../application/logging/logger';
+import { DomainEvent } from '../../domain/events/DomainEvent';
 
 export interface RetryConfig {
   maxAttempts: number;
@@ -9,41 +10,84 @@ export interface RetryConfig {
   backoffFactor: number;
 }
 
+export interface DeadLetterQueueService {
+  sendToDeadLetterQueue(event: DomainEvent, error: Error, retryCount: number): Promise<void>;
+}
+
 export class RetryMechanism {
   private readonly logger: Logger;
   private readonly config: RetryConfig;
+  private readonly dlqService?: DeadLetterQueueService;
 
-  constructor(logger: Logger, config: RetryConfig) {
+  constructor(logger: Logger, config: RetryConfig, dlqService?: DeadLetterQueueService) {
     this.logger = logger;
     this.config = config;
+    this.dlqService = dlqService;
   }
 
   async executeWithRetry<T>(
     operation: () => Promise<T>,
-    context: string
+    context: string,
+    event?: DomainEvent
   ): Promise<T> {
     let lastError: Error | null = null;
     let delay = this.config.initialDelayMs;
 
     for (let attempt = 1; attempt <= this.config.maxAttempts; attempt++) {
       try {
+        this.logger.debug(`🔄 Retry attempt ${attempt}/${this.config.maxAttempts}`, {
+          context,
+          attempt,
+          eventType: event?.eventType,
+          eventId: event?.eventId?.value
+        });
+
         return await operation();
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
         
+        this.logger.warn(`⚠️ Operation failed on attempt ${attempt}`, {
+          context,
+          attempt,
+          maxAttempts: this.config.maxAttempts,
+          error: lastError.message,
+          eventType: event?.eventType,
+          eventId: event?.eventId?.value
+        });
+
         if (attempt === this.config.maxAttempts) {
-          this.logger.error(`Operation failed after ${attempt} attempts`, {
+          this.logger.error(`❌ Operation failed after ${attempt} attempts - sending to DLQ`, {
             context,
-            error: lastError.message
+            error: lastError.message,
+            eventType: event?.eventType,
+            eventId: event?.eventId?.value
           });
+
+          // Send to Dead Letter Queue if available
+          if (event && this.dlqService) {
+            try {
+              await this.dlqService.sendToDeadLetterQueue(event, lastError, attempt);
+              this.logger.info(`📮 Event sent to Dead Letter Queue`, {
+                eventType: event.eventType,
+                eventId: event.eventId?.value,
+                retryCount: attempt
+              });
+            } catch (dlqError) {
+              this.logger.error(`❌ Failed to send event to DLQ`, {
+                eventType: event.eventType,
+                eventId: event.eventId?.value,
+                dlqError: dlqError instanceof Error ? dlqError.message : 'Unknown DLQ error'
+              });
+            }
+          }
+
           throw lastError;
         }
 
-        this.logger.warn(`Operation failed, retrying...`, {
+        this.logger.info(`⏳ Waiting ${delay}ms before retry ${attempt + 1}`, {
           context,
-          attempt,
-          nextAttemptIn: delay,
-          error: lastError.message
+          delayMs: delay,
+          nextAttempt: attempt + 1
         });
 
         await this.delay(delay);

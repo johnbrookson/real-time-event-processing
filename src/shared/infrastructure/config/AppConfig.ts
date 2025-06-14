@@ -1,7 +1,8 @@
 import { config } from 'dotenv';
-import { RetryConfig } from '@shared/infrastructure/retry/RetryMechanism';
-import { RabbitMQConfig } from '@shared/infrastructure/messaging/RabbitMQClient';
-import { BatchProcessorConfig } from '@shared/infrastructure/batch/batch-processor';
+import { RetryConfig } from '../retry/RetryMechanism';
+import { RabbitMQConfig } from '../messaging/RabbitMQClient';
+import { BatchProcessorConfig } from '../batch/BatchProcessor';
+import { DeadLetterQueueConfig } from '../retry/DeadLetterQueueService';
 
 // Load environment variables
 config();
@@ -15,6 +16,7 @@ export interface AppConfig {
   rabbitmq: RabbitMQConfig;
   batch: BatchProcessorConfig;
   retry: RetryConfig;
+  dlq: DeadLetterQueueConfig;
   worker: {
     concurrency: number;
     prefetchCount: number;
@@ -50,15 +52,21 @@ export class ConfigFactory {
         routingKey: process.env.RABBITMQ_ROUTING_KEY || 'order.*'
       },
       batch: {
-        batchSize: parseInt(process.env.BATCH_SIZE || '100', 10),
-        batchIntervalMs: parseInt(process.env.BATCH_INTERVAL_SECONDS || '30', 10) * 1000,
-        maxWaitTimeMs: parseInt(process.env.MAX_BATCH_WAIT_SECONDS || '60', 10) * 1000
+        batchSize: parseInt(process.env.BATCH_SIZE || '3', 10),
+        batchIntervalMs: parseInt(process.env.BATCH_INTERVAL_SECONDS || '10', 10) * 1000,
+        maxWaitTimeMs: parseInt(process.env.MAX_BATCH_WAIT_SECONDS || '20', 10) * 1000
       },
       retry: {
         maxAttempts: parseInt(process.env.MAX_RETRY_ATTEMPTS || '3', 10),
         initialDelayMs: parseInt(process.env.RETRY_DELAY_MS || '1000', 10),
         maxDelayMs: parseInt(process.env.RETRY_MAX_DELAY_MS || '30000', 10),
         backoffFactor: parseInt(process.env.RETRY_BACKOFF_FACTOR || '2', 10)
+      },
+      dlq: {
+        rabbitmqUrl: process.env.RABBITMQ_URL || 'amqp://guest:guest@localhost:5672',
+        dlqExchange: process.env.RABBITMQ_EXCHANGE_DEAD_LETTER || 'dlx_exchange',
+        dlqQueue: process.env.RABBITMQ_QUEUE_DEAD_LETTER || 'dead_letter_queue',
+        dlqRoutingKey: process.env.RABBITMQ_DLQ_ROUTING_KEY || 'failed'
       },
       worker: {
         concurrency: parseInt(process.env.WORKER_CONCURRENCY || '5', 10),

@@ -1,5 +1,5 @@
 import { DomainEvent } from '../../../domain/events/DomainEvent';
-import { EventObserver } from './event-observer';
+import { EventObserver } from './EventObserver';
 import { Logger } from '../../logging/logger';
 
 /**

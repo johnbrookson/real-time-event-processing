@@ -1,12 +1,12 @@
-import { DependencyContainer } from '../../bootstrap/dependency-container';
+import { DependencyContainer } from '../../bootstrap/DependencyContainer';
 import { AppConfig } from '../../shared/infrastructure/config/AppConfig';
 import { RabbitMQClient } from '../../shared/infrastructure/messaging/RabbitMQClient';
 import { BatchProcessor } from '../../shared/infrastructure/batch/BatchProcessor';
 import { RetryMechanism } from '../../shared/infrastructure/retry/RetryMechanism';
 import { ConsoleLogger, Logger } from '../../shared/application/logging/logger';
-import { OrderProcessingStrategy } from '../../shared/application/patterns/strategy/order-processing-strategy';
-import { NotificationObserver } from '../../shared/application/patterns/observer/notification-observer';
-import { EventProcessingService } from '../../bootstrap/event-processing-service';
+import { OrderProcessingStrategy } from '../../shared/application/patterns/strategy/OrderProcessingStrategy';
+import { NotificationObserver } from '../../shared/application/patterns/observer/NotificationObserver';
+import { EventProcessingService } from '../../bootstrap/EventProcessingService';
 
 describe('DependencyContainer', () => {
   let container: DependencyContainer;
