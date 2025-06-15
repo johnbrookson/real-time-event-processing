@@ -7,4 +7,4 @@
 
 export { DependencyContainer } from './DependencyContainer';
 export { Application } from './Application';
-export { EventProcessingService, EventProcessingSubject, CompositeMessageHandler } from './EventProcessingService'; 
+export { EventProcessingService, EventProcessingSubject, CompositeMessageHandler } from '../shared/infrastructure/event-processing/EventProcessingService'; 

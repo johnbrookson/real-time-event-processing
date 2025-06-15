@@ -4,9 +4,10 @@ import { BatchProcessor } from '../shared/infrastructure/batch/BatchProcessor';
 import { RetryMechanism } from '../shared/infrastructure/retry/RetryMechanism';
 import { RabbitMQDeadLetterQueueService } from '../shared/infrastructure/retry/DeadLetterQueueService';
 import { ConsoleLogger, Logger } from '../shared/application/logging/logger';
-import { OrderProcessingStrategy } from '../shared/application/patterns/strategy/OrderProcessingStrategy';
+import { OrderProcessingStrategy } from '../order/infrastructure/event-processing/OrderProcessingStrategy';
 import { NotificationObserver } from '../shared/application/patterns/observer/NotificationObserver';
-import { EventProcessingService } from './EventProcessingService';
+import { EventProcessingService } from '../shared/infrastructure/event-processing/EventProcessingService';
+import { DependencyContainer } from './DependencyContainer';
 
 /**
  * Main Application Bootstrap Class
@@ -24,34 +25,23 @@ export class Application {
   private readonly orderProcessingStrategy: OrderProcessingStrategy;
   private readonly notificationObserver: NotificationObserver;
   private readonly eventProcessingService: EventProcessingService;
+  private readonly container: DependencyContainer;
 
   constructor() {
-    // Initialize configuration
-    this.config = ConfigFactory.create();
-    ConfigFactory.validate(this.config);
+    // Initialize dependency container
+    this.container = DependencyContainer.getInstance();
+    this.container.initialize();
 
-    // Initialize logger
-    this.logger = new ConsoleLogger();
-
-    // Initialize infrastructure services
-    this.rabbitMQClient = new RabbitMQClient(this.config.rabbitmq, this.logger);
-    this.batchProcessor = new BatchProcessor(this.logger, this.config.batch);
-    this.dlqService = new RabbitMQDeadLetterQueueService(this.logger, this.config.dlq);
-    this.retryMechanism = new RetryMechanism(this.logger, this.config.retry, this.dlqService);
-
-    // Initialize application services
-    this.orderProcessingStrategy = new OrderProcessingStrategy(this.logger);
-    this.notificationObserver = new NotificationObserver(this.logger);
-
-    // Initialize event processing service
-    this.eventProcessingService = new EventProcessingService(
-      this.logger,
-      this.batchProcessor,
-      this.notificationObserver,
-      this.rabbitMQClient,
-      this.retryMechanism,
-      this.config
-    );
+    // Resolve dependencies from container
+    this.config = this.container.get<AppConfig>('AppConfig');
+    this.logger = this.container.get<Logger>('Logger');
+    this.rabbitMQClient = this.container.get<RabbitMQClient>('RabbitMQClient');
+    this.batchProcessor = this.container.get<BatchProcessor>('BatchProcessor');
+    this.retryMechanism = this.container.get<RetryMechanism>('RetryMechanism');
+    this.dlqService = this.container.get<RabbitMQDeadLetterQueueService>('DeadLetterQueueService');
+    this.orderProcessingStrategy = this.container.get<OrderProcessingStrategy>('OrderProcessingStrategy');
+    this.notificationObserver = this.container.get<NotificationObserver>('NotificationObserver');
+    this.eventProcessingService = this.container.get<EventProcessingService>('EventProcessingService');
   }
 
   /**

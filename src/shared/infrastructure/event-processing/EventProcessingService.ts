@@ -1,13 +1,15 @@
-import { DomainEvent } from '../shared/domain/events/DomainEvent';
-import { Logger } from '../shared/application/logging/logger';
-import { BatchProcessor } from '../shared/infrastructure/batch/BatchProcessor';
-import { NotificationObserver } from '../shared/application/patterns/observer/NotificationObserver';
-import { EventObserver } from '../shared/application/patterns/observer/EventObserver';
-import { MessageHandler } from '../shared/infrastructure/messaging/RabbitMQClient';
-import { RabbitMQClient } from '../shared/infrastructure/messaging/RabbitMQClient';
-import { RetryableMessageHandler } from '../shared/infrastructure/messaging/RetryableMessageHandler';
-import { RetryMechanism } from '../shared/infrastructure/retry/RetryMechanism';
-import { AppConfig } from '../shared/infrastructure/config/AppConfig';
+import { DomainEvent } from '../../domain/events/DomainEvent';
+import { Logger } from '../../application/logging/logger';
+import { BatchProcessor } from '../batch/BatchProcessor';
+import { NotificationObserver } from '../../application/patterns/observer/NotificationObserver';
+import { EventObserver } from '../../application/patterns/observer/EventObserver';
+import { MessageHandler } from '../messaging/RabbitMQClient';
+import { RabbitMQClient } from '../messaging/RabbitMQClient';
+import { RetryableMessageHandler } from '../messaging/RetryableMessageHandler';
+import { RetryMechanism } from '../retry/RetryMechanism';
+import { AppConfig } from '../config/AppConfig';
+import { EventId } from '../../domain/value-objects/EventId';
+import { BatchFlushStrategy } from '../batch/BatchFlushStrategy';
 
 /**
  * Subject interface for the Observer Pattern
@@ -105,20 +107,14 @@ export class CompositeMessageHandler implements MessageHandler {
     this.eventSubject = eventSubject;
   }
 
+  getHandlerName(): string {
+    return 'CompositeMessageHandler';
+  }
+
   async handle(event: DomainEvent): Promise<void> {
     this.logger.info(`Handling message: ${event.eventType}`, {
       eventId: event.eventId.value,
       aggregateId: event.aggregateId
-    });
-
-    // Debug: Log the complete event structure
-    this.logger.info(`🔍 COMPLETE EVENT STRUCTURE:`, {
-      eventType: event.eventType,
-      eventId: event.eventId?.value,
-      aggregateId: event.aggregateId,
-      data: event.data,
-      dataType: typeof event.data,
-      dataKeys: event.data ? Object.keys(event.data) : 'no data'
     });
 
     try {
@@ -136,7 +132,7 @@ export class CompositeMessageHandler implements MessageHandler {
       });
 
     } catch (error) {
-      this.logger.error(`❌ COMPOSITE HANDLER ERROR: Failed to handle message: ${event.eventType}`, {
+      this.logger.error(`Failed to handle message: ${event.eventType}`, {
         eventId: event.eventId.value,
         error: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
@@ -147,55 +143,19 @@ export class CompositeMessageHandler implements MessageHandler {
 
   private async validateEventData(event: DomainEvent): Promise<void> {
     if (event.eventType === 'OrderCreated') {
-      this.logger.info(`🔍 Pre-validation for OrderCreated event`, {
-        eventId: event.eventId.value,
-        aggregateId: event.aggregateId
-      });
-
-      // Log the actual data for debugging
-      this.logger.info(`🔍 DEBUG - Event data:`, {
-        customerId: event.data.customerId,
-        customerIdType: typeof event.data.customerId,
-        customerIdIsNull: event.data.customerId === null,
-        total: event.data.total,
-        totalType: typeof event.data.total,
-        items: event.data.items,
-        itemsIsArray: Array.isArray(event.data.items),
-        itemsLength: event.data.items?.length
-      });
-
       // Validate required fields
       if (!event.data.customerId || event.data.customerId === null) {
-        this.logger.error(`❌ VALIDATION FAILED: customerId is required`, {
-          customerId: event.data.customerId,
-          type: typeof event.data.customerId
-        });
         throw new Error('Invalid order: customerId is required');
       }
 
       if (typeof event.data.total !== 'number' || event.data.total <= 0) {
-        this.logger.error(`❌ VALIDATION FAILED: total must be a positive number`, {
-          total: event.data.total,
-          type: typeof event.data.total
-        });
         throw new Error('Invalid order: total must be a positive number');
       }
 
       if (!Array.isArray(event.data.items) || event.data.items.length === 0) {
-        this.logger.error(`❌ VALIDATION FAILED: items array is required and cannot be empty`, {
-          items: event.data.items,
-          isArray: Array.isArray(event.data.items),
-          length: event.data.items?.length
-        });
         throw new Error('Invalid order: items array is required and cannot be empty');
       }
-
-      this.logger.info(`✅ Pre-validation passed for OrderCreated event`);
     }
-  }
-
-  getHandlerName(): string {
-    return 'CompositeMessageHandler';
   }
 }
 
@@ -212,6 +172,7 @@ export class EventProcessingService {
   private readonly rabbitMQClient: RabbitMQClient;
   private readonly retryMechanism: RetryMechanism;
   private readonly config: AppConfig;
+  private readonly batchFlushStrategy: BatchFlushStrategy;
 
   constructor(
     logger: Logger,
@@ -234,6 +195,10 @@ export class EventProcessingService {
       this.batchProcessor,
       this.eventSubject
     );
+
+    // Initialize BatchFlushStrategy
+    this.batchFlushStrategy = new BatchFlushStrategy(logger);
+    this.batchProcessor.registerStrategy('BatchFlush', this.batchFlushStrategy);
 
     // Wrap the composite handler with retry mechanism
     this.retryableMessageHandler = new RetryableMessageHandler(
@@ -289,10 +254,10 @@ export class EventProcessingService {
   }
 
   private async configureMessageHandlers(): Promise<void> {
-    const messageHandler = this.retryableMessageHandler; // Use retryable handler instead
+    const messageHandler = this.retryableMessageHandler;
     const queueName = this.config.rabbitmq.queue;
 
-    this.logger.info(`🔧 CONFIGURING HANDLER: ${messageHandler.getHandlerName()}`);
+    this.logger.info(`Configuring handler: ${messageHandler.getHandlerName()}`);
 
     // Register the retryable handler for the main queue
     this.rabbitMQClient.registerHandler(queueName, messageHandler);
@@ -321,7 +286,15 @@ export class EventProcessingService {
     setInterval(async () => {
       try {
         this.logger.debug('Flushing pending batches');
-        // Note: Using basic flush since flushAll might not be available in all BatchProcessor implementations
+        // Trigger batch processing by adding a dummy event
+        await this.batchProcessor.addEvent({
+          eventType: 'BatchFlush',
+          eventId: new EventId(),
+          aggregateId: 'system',
+          data: {},
+          occurredOn: new Date(),
+          version: 1
+        });
         this.logger.debug('Batch flush completed');
       } catch (error) {
         this.logger.error('Error during scheduled batch processing', { error });

@@ -4,9 +4,9 @@ import { RabbitMQClient } from '../../shared/infrastructure/messaging/RabbitMQCl
 import { BatchProcessor } from '../../shared/infrastructure/batch/BatchProcessor';
 import { RetryMechanism } from '../../shared/infrastructure/retry/RetryMechanism';
 import { ConsoleLogger, Logger } from '../../shared/application/logging/logger';
-import { OrderProcessingStrategy } from '../../shared/application/patterns/strategy/OrderProcessingStrategy';
+import { OrderProcessingStrategy } from '../../order/infrastructure/event-processing/OrderProcessingStrategy';
 import { NotificationObserver } from '../../shared/application/patterns/observer/NotificationObserver';
-import { EventProcessingService } from '../../bootstrap/EventProcessingService';
+import { EventProcessingService } from '../../shared/infrastructure/event-processing/EventProcessingService';
 
 describe('DependencyContainer', () => {
   let container: DependencyContainer;

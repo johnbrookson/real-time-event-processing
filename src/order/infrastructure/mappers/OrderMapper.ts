@@ -5,7 +5,7 @@ import { Address } from '../../domain/value-objects/Address';
 import { OrderItem } from '../../domain/value-objects/OrderItem';
 
 export class OrderMapper {
-  toDomain(model: any): Order {
+  toDomain(model: OrderModel): Order {
     // Create value objects from raw data
     const total = new Money(model.total);
     
@@ -31,7 +31,7 @@ export class OrderMapper {
       country: model.billingAddress.country
     });
 
-    const items = model.items.map((item: any) => new OrderItem({
+    const items = model.items.map(item => new OrderItem({
       productId: item.productId,
       quantity: item.quantity,
       unitPrice: new Money(item.unitPrice),
@@ -50,7 +50,7 @@ export class OrderMapper {
     });
   }
 
-  toPersistence(order: Order): any {
+  toPersistence(order: Order): Partial<OrderModel> {
     return {
       id: order.id,
       customerId: order.customerId,

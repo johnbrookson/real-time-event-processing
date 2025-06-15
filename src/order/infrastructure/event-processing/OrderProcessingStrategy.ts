@@ -1,9 +1,9 @@
-import { Logger } from '../../logging/logger';
-import { DomainEvent } from '../../../domain/events/DomainEvent';
-import { OrderCreatedEvent } from '../../../../order/domain/events/OrderCreatedEvent';
-import { OrderCancelledEvent } from '../../../../order/domain/events/OrderCancelledEvent';
-import { OrderCompletedEvent } from '../../../../order/domain/events/OrderCompletedEvent';
-import { ProcessingStrategy } from '../../../infrastructure/batch/BatchProcessor';
+import { Logger } from '../../../shared/application/logging/logger';
+import { DomainEvent } from '../../../shared/domain/events/DomainEvent';
+import { OrderCreatedEvent } from '../../domain/events/OrderCreatedEvent';
+import { OrderCancelledEvent } from '../../domain/events/OrderCancelledEvent';
+import { OrderCompletedEvent } from '../../domain/events/OrderCompletedEvent';
+import { ProcessingStrategy } from '../../../shared/infrastructure/batch/BatchProcessor';
 
 export class OrderProcessingStrategy implements ProcessingStrategy {
   private readonly logger: Logger;
@@ -198,13 +198,11 @@ export class OrderProcessingStrategy implements ProcessingStrategy {
     });
   }
 
-  private async simulateProcessing(operation: string, delayMs: number): Promise<void> {
-    this.logger.debug(`⏳ Simulating ${operation} processing (${delayMs}ms)...`);
-    await new Promise(resolve => setTimeout(resolve, delayMs));
-    this.logger.debug(`✅ ${operation} completed`);
+  private async simulateProcessing(step: string, delay: number): Promise<void> {
+    this.logger.debug(`⏳ Simulating ${step}...`, { delay });
+    await new Promise(resolve => setTimeout(resolve, delay));
   }
 
-  // Monitoring methods
   getTotalProcessed(): number {
     return this.processedCount;
   }

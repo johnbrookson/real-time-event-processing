@@ -2,10 +2,11 @@ import { ConfigFactory, AppConfig } from '../shared/infrastructure/config/AppCon
 import { RabbitMQClient } from '../shared/infrastructure/messaging/RabbitMQClient';
 import { BatchProcessor } from '../shared/infrastructure/batch/BatchProcessor';
 import { RetryMechanism } from '../shared/infrastructure/retry/RetryMechanism';
+import { RabbitMQDeadLetterQueueService } from '../shared/infrastructure/retry/DeadLetterQueueService';
 import { ConsoleLogger, Logger } from '../shared/application/logging/logger';
-import { OrderProcessingStrategy } from '../shared/application/patterns/strategy/OrderProcessingStrategy';
+import { OrderProcessingStrategy } from '../order/infrastructure/event-processing/OrderProcessingStrategy';
 import { NotificationObserver } from '../shared/application/patterns/observer/NotificationObserver';
-import { EventProcessingService } from './EventProcessingService';
+import { EventProcessingService } from '../shared/infrastructure/event-processing/EventProcessingService';
 
 /**
  * Simple Dependency Injection Container
@@ -57,7 +58,10 @@ export class DependencyContainer {
     const batchProcessor = new BatchProcessor(logger, config.batch);
     this.dependencies.set('BatchProcessor', batchProcessor);
 
-    const retryMechanism = new RetryMechanism(logger, config.retry);
+    const dlqService = new RabbitMQDeadLetterQueueService(logger, config.dlq);
+    this.dependencies.set('DeadLetterQueueService', dlqService);
+
+    const retryMechanism = new RetryMechanism(logger, config.retry, dlqService);
     this.dependencies.set('RetryMechanism', retryMechanism);
 
     // Initialize application services

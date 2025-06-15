@@ -23,11 +23,20 @@ export class BatchProcessor {
   private isShuttingDown: boolean = false;
   private processedCount: number = 0;
   private batchCount: number = 0;
+  private lastProcessingTime: number = 0;
+  private totalProcessingTime: number = 0;
+  private errorCount: number = 0;
+  private successCount: number = 0;
 
   constructor(logger: Logger, config: BatchProcessorConfig) {
     this.logger = logger;
     this.config = config;
     this.startBatchTimer();
+    this.logger.info('BatchProcessor initialized', {
+      batchSize: config.batchSize,
+      batchIntervalMs: config.batchIntervalMs,
+      maxWaitTimeMs: config.maxWaitTimeMs
+    });
   }
 
   registerStrategy(eventType: string, strategy: ProcessingStrategy): void {
@@ -82,10 +91,11 @@ export class BatchProcessor {
       eventTypes: this.getEventTypeCounts(currentBatch)
     });
 
-    let successCount = 0;
-    let errorCount = 0;
+    let batchSuccessCount = 0;
+    let batchErrorCount = 0;
 
-    for (const event of currentBatch) {
+    // Process events in parallel for better performance
+    const processingPromises = currentBatch.map(async (event) => {
       try {
         const strategy = this.strategies.get(event.eventType);
         
@@ -94,8 +104,9 @@ export class BatchProcessor {
             eventId: event.eventId.value,
             availableStrategies: Array.from(this.strategies.keys())
           });
-          errorCount++;
-          continue;
+          batchErrorCount++;
+          this.errorCount++;
+          return;
         }
 
         this.logger.debug(`Processing event with strategy`, {
@@ -105,7 +116,8 @@ export class BatchProcessor {
         });
 
         await strategy.process(event);
-        successCount++;
+        batchSuccessCount++;
+        this.successCount++;
         this.processedCount++;
 
         this.logger.debug(`✅ Event processed successfully`, {
@@ -114,7 +126,8 @@ export class BatchProcessor {
         });
 
       } catch (error) {
-        errorCount++;
+        batchErrorCount++;
+        this.errorCount++;
         this.logger.error(`❌ Failed to process event`, {
           eventType: event.eventType,
           eventId: event.eventId.value,
@@ -122,16 +135,22 @@ export class BatchProcessor {
           stack: error instanceof Error ? error.stack : undefined
         });
       }
-    }
+    });
+
+    await Promise.all(processingPromises);
 
     const processingTime = Date.now() - startTime;
+    this.lastProcessingTime = processingTime;
+    this.totalProcessingTime += processingTime;
     
     this.logger.info(`✅ Batch #${batchId} processing completed`, {
       totalEvents: currentBatch.length,
-      successCount,
-      errorCount,
+      successCount: batchSuccessCount,
+      errorCount: batchErrorCount,
       processingTimeMs: processingTime,
-      totalProcessed: this.processedCount
+      totalProcessed: this.processedCount,
+      averageProcessingTime: this.totalProcessingTime / this.batchCount,
+      successRate: (this.successCount / (this.successCount + this.errorCount)) * 100
     });
 
     // Restart the batch timer
@@ -180,7 +199,11 @@ export class BatchProcessor {
 
     this.logger.info('BatchProcessor shutdown completed', {
       totalProcessed: this.processedCount,
-      totalBatches: this.batchCount
+      totalBatches: this.batchCount,
+      successCount: this.successCount,
+      errorCount: this.errorCount,
+      averageProcessingTime: this.totalProcessingTime / this.batchCount,
+      successRate: (this.successCount / (this.successCount + this.errorCount)) * 100
     });
   }
 
@@ -195,5 +218,17 @@ export class BatchProcessor {
 
   getTotalBatches(): number {
     return this.batchCount;
+  }
+
+  getLastProcessingTime(): number {
+    return this.lastProcessingTime;
+  }
+
+  getAverageProcessingTime(): number {
+    return this.totalProcessingTime / this.batchCount;
+  }
+
+  getSuccessRate(): number {
+    return (this.successCount / (this.successCount + this.errorCount)) * 100;
   }
 } 
