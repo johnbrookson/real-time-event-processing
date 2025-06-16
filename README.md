@@ -30,6 +30,8 @@ O sistema processa eventos relacionados ao ciclo de vida de pedidos em uma plata
 
 ### Design Patterns Implementados
 
+#### **🎯 Patterns Principais (Requeridos)**
+
 #### 1. **Strategy Pattern** 
 - **Justificativa**: Permite diferentes estratégias de processamento para diferentes tipos de eventos
 - **Implementação**: `EventProcessingStrategy` com implementações específicas como `OrderProcessingStrategy`
@@ -45,6 +47,17 @@ O sistema processa eventos relacionados ao ciclo de vida de pedidos em uma plata
   - Baixo acoplamento entre componentes
   - Facilita a adição de novos observadores
   - Processamento assíncrono de notificações
+
+#### **⭐ Patterns Adicionais (Implementados)**
+
+Além dos 2 patterns requeridos, o sistema implementa patterns arquiteturais adicionais:
+
+- **🏭 Factory Pattern**: `ConfigFactory` para criação e validação de configurações
+- **🔨 Builder Pattern**: `Order.create()` para construção complexa de entidades
+- **💉 Dependency Injection**: `DependencyContainer` para inversão de controle
+- **🎭 Adapter Pattern**: `OrderMapper` para adaptação domínio ↔ persistência
+
+*Demonstrando aplicação abrangente de patterns para arquitetura enterprise-ready.*
 
 ### Clean Architecture + DDD
 
