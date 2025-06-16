@@ -143,11 +143,7 @@ export class RabbitMQDeadLetterQueueService implements DeadLetterQueueService {
     try {
       // TODO: Implement database logging
       // This would insert into the dead_letter_queue table created in init-db.sql
-      this.logger.debug('📝 DLQ event logged to database', {
-        eventType: event.eventType,
-        eventId: event.eventId?.value,
-        retryCount
-      });
+
     } catch (dbError) {
       this.logger.warn('⚠️ Failed to log DLQ event to database', {
         eventType: event.eventType,

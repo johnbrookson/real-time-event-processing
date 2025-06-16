@@ -15,6 +15,16 @@ describe('DependencyContainer', () => {
     container = DependencyContainer.getInstance();
   });
 
+  afterAll(async () => {
+    // Clean up BatchProcessor to avoid open handles
+    try {
+      const batchProcessor = container.get<BatchProcessor>('BatchProcessor');
+      await batchProcessor.shutdown();
+    } catch (error) {
+      // Ignore errors during cleanup
+    }
+  });
+
   it('should get AppConfig', () => {
     const config = container.get<AppConfig>('AppConfig');
     expect(config).toBeDefined();

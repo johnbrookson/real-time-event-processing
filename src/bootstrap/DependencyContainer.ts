@@ -6,7 +6,12 @@ import { RabbitMQDeadLetterQueueService } from '../shared/infrastructure/retry/D
 import { ConsoleLogger, Logger } from '../shared/application/logging/logger';
 import { OrderProcessingStrategy } from '../order/infrastructure/event-processing/OrderProcessingStrategy';
 import { NotificationObserver } from '../shared/application/patterns/observer/NotificationObserver';
-import { EventProcessingService } from '../shared/infrastructure/event-processing/EventProcessingService';
+import { EventProcessingService, EventProcessingSubject, CompositeMessageHandler } from '../shared/infrastructure/event-processing/EventProcessingService';
+import { OrderMapper } from '../order/infrastructure/mappers/OrderMapper';
+import { IOrderMapper } from '../order/infrastructure/mappers/IOrderMapper';
+import { PostgresOrderRepository } from '../order/infrastructure/persistence/PostgresOrderRepository';
+import { BatchFlushStrategy } from '../shared/infrastructure/batch/BatchFlushStrategy';
+import { RetryableMessageHandler } from '../shared/infrastructure/messaging/RetryableMessageHandler';
 
 /**
  * Simple Dependency Injection Container
@@ -71,6 +76,35 @@ export class DependencyContainer {
     const notificationObserver = new NotificationObserver(logger);
     this.dependencies.set('NotificationObserver', notificationObserver);
 
+    // Initialize mappers
+    const orderMapper = new OrderMapper();
+    this.dependencies.set('OrderMapper', orderMapper);
+
+    // Initialize repositories
+    const orderRepository = new PostgresOrderRepository(orderMapper);
+    this.dependencies.set('OrderRepository', orderRepository);
+
+    // Initialize event processing components
+    const eventSubject = new EventProcessingSubject(logger);
+    this.dependencies.set('EventProcessingSubject', eventSubject);
+
+    const batchFlushStrategy = new BatchFlushStrategy(logger);
+    this.dependencies.set('BatchFlushStrategy', batchFlushStrategy);
+
+    const compositeMessageHandler = new CompositeMessageHandler(
+      logger,
+      batchProcessor,
+      eventSubject
+    );
+    this.dependencies.set('CompositeMessageHandler', compositeMessageHandler);
+
+    const retryableMessageHandler = new RetryableMessageHandler(
+      logger,
+      retryMechanism,
+      compositeMessageHandler
+    );
+    this.dependencies.set('RetryableMessageHandler', retryableMessageHandler);
+
     // Initialize event processing service
     const eventProcessingService = new EventProcessingService(
       logger,
@@ -78,7 +112,11 @@ export class DependencyContainer {
       notificationObserver,
       rabbitMQClient,
       retryMechanism,
-      config
+      config,
+      eventSubject,
+      compositeMessageHandler,
+      batchFlushStrategy,
+      retryableMessageHandler
     );
     this.dependencies.set('EventProcessingService', eventProcessingService);
 

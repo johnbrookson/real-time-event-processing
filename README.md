@@ -4,6 +4,18 @@
 
 Sistema robusto de processamento de eventos em tempo real para e-commerce, implementado seguindo os princípios de **Clean Architecture**, **Domain-Driven Design (DDD)** e **SOLID**, utilizando Node.js, TypeScript, RabbitMQ e processamento em lote.
 
+## 🚀 **INÍCIO RÁPIDO**
+
+**Para iniciar imediatamente (recomendado para avaliadores):**
+
+```bash
+git clone <repository-url>
+cd ecommerce-event-processor
+./scripts/start.sh  # ← ONE-CLICK STARTUP
+```
+
+**Se o comando acima não funcionar**, veja as [soluções de troubleshooting](#-script-scriptsstart-sh-não-executa) mais abaixo.
+
 ## 🏗️ Arquitetura
 
 ### Contexto Funcional
@@ -38,14 +50,42 @@ O sistema processa eventos relacionados ao ciclo de vida de pedidos em uma plata
 
 ```
 src/
-├── shared/                     # Camada Compartilhada
-│   ├── domain/                 # Domínio (Entidades, Value Objects, Events)
-│   ├── application/            # Casos de Uso e Serviços de Aplicação
-│   └── infrastructure/         # Infraestrutura (RabbitMQ, Banco, etc.)
-├── order/                      # Bounded Context: Orders
-│   ├── domain/                 # Entidades e Eventos de Domínio
-│   └── application/            # Casos de Uso específicos de Orders
-└── main.ts                     # Ponto de entrada da aplicação
+├── shared/                           # Camada Compartilhada
+│   ├── domain/                       # Domain Layer
+│   │   ├── events/                   # Domain Events (DomainEvent, etc.)
+│   │   ├── value-objects/            # Value Objects (EventId, etc.)
+│   │   └── Result.ts                 # Result pattern implementation
+│   ├── application/                  # Application Layer
+│   │   ├── logging/                  # Logging abstractions (Logger, etc.)
+│   │   └── patterns/                 # Design Patterns
+│   │       ├── observer/             # Observer Pattern (EventObserver)
+│   │       └── strategy/             # Strategy Pattern (ProcessingStrategy)
+│   └── infrastructure/               # Infrastructure Layer
+│       ├── batch/                    # Batch Processing (BatchProcessor)
+│       ├── config/                   # Configuration (AppConfig, ConfigFactory)
+│       ├── event-processing/         # Event Processing Service
+│       ├── messaging/                # RabbitMQ (RabbitMQClient, Handlers)
+│       └── retry/                    # Retry Mechanism (RetryMechanism, DLQ)
+├── order/                            # Orders Bounded Context
+│   ├── domain/                       # Order Domain
+│   │   ├── entities/                 # Order, OrderItem
+│   │   ├── events/                   # OrderCreated, OrderCompleted, etc.
+│   │   ├── repositories/             # Repository interfaces (IOrderRepository)
+│   │   └── value-objects/            # Money, Address, OrderId
+│   ├── application/                  # Order Application
+│   │   └── use-cases/                # CreateOrder, CancelOrder, GetOrder, etc.
+│   └── infrastructure/               # Order Infrastructure
+│       ├── event-processing/         # OrderProcessingStrategy
+│       ├── events/                   # RabbitMQOrderEventPublisher
+│       ├── mappers/                  # OrderMapper (Domain ↔ Persistence)
+│       ├── messaging/                # Order-specific message handlers
+│       ├── persistence/              # OrderModel, database models
+│       └── repositories/             # PostgresOrderRepository
+├── bootstrap/                        # Application Bootstrap
+│   └── DependencyContainer.ts        # Dependency Injection Container
+├── __tests__/                        # Integration Tests
+│   └── bootstrap/                    # DI Container tests
+└── main.ts                           # Application Entry Point
 ```
 
 ## 🚀 Funcionalidades
@@ -82,7 +122,7 @@ src/
 - **Cache**: Redis (opcional)
 - **Containerização**: Docker + Docker Compose
 - **Testing**: Jest com cobertura de testes
-- **Logging**: Winston para logs estruturados
+- **Logging**: Console logging estruturado
 
 ## 📦 Instalação e Execução
 
@@ -91,14 +131,42 @@ src/
 - Node.js 18+ (para desenvolvimento local)
 - Git
 
-### Execução com Docker (Recomendado)
+### 🚀 **INÍCIO RÁPIDO - Método Recomendado**
+
+**Para avaliadores e testes rápidos, use o script de inicialização:**
 
 ```bash
 # 1. Clone o repositório
 git clone <repository-url>
 cd ecommerce-event-processor
 
-# 2. Inicie os serviços
+# 2. Execute o script de inicialização (ONE-CLICK STARTUP)
+./scripts/start.sh
+
+# 3. Aguarde a mensagem: "✅ All services started successfully!"
+# O script irá:
+#   - Verificar pré-requisitos (Docker)
+#   - Parar serviços anteriores se houver conflito
+#   - Construir a aplicação
+#   - Iniciar infraestrutura (RabbitMQ, PostgreSQL, Redis)
+#   - Aguardar inicialização completa (~30s)
+#   - Iniciar a aplicação
+#   - Mostrar status e pontos de acesso
+```
+
+**Se o script `start.sh` não funcionar:**
+1. **Verifique permissões**: `chmod +x scripts/start.sh`
+2. **Verifique Docker**: `docker --version && docker compose version`
+3. **Método manual alternativo** (abaixo)
+
+### Execução Manual com Docker
+
+```bash
+# 1. Clone o repositório
+git clone <repository-url>
+cd ecommerce-event-processor
+
+# 2. Inicie os serviços manualmente
 docker-compose up -d
 
 # 3. Verifique os logs
@@ -195,6 +263,34 @@ Os testes cobrem:
 - ✅ Design Patterns (Strategy, Observer)
 - ✅ Casos de uso principais
 - ✅ Cenários de erro e retry
+
+## 🎯 Scripts de Demonstração
+
+**Para facilitar a avaliação, o projeto inclui scripts prontos para demonstrar todas as funcionalidades:**
+
+```bash
+# 📚 Veja o guia completo dos scripts
+cat scripts/README.md
+
+# 🚀 Inicialização completa do sistema
+./scripts/start.sh
+
+# 🛍️ Demo principal: Batch Processing + Design Patterns  
+./scripts/create-multiple-orders.sh
+
+# 🧪 Teste de resilência: Retry + Dead Letter Queue
+./scripts/test-retry-dlq.sh
+
+# 📦 Demo rápida: Single order processing
+./scripts/create-order.sh
+```
+
+**Fluxo recomendado para avaliação:**
+1. Execute `./scripts/start.sh` e aguarde inicialização
+2. Execute `./scripts/create-multiple-orders.sh` em uma aba
+3. Execute `docker compose logs app -f` em outra aba para acompanhar
+4. Observe batch processing, design patterns e logs estruturados
+5. Execute `./scripts/test-retry-dlq.sh` para ver retry e DLQ
 
 ## 📊 Monitoramento
 
@@ -309,6 +405,75 @@ done
 ```
 
 ## 🔧 Troubleshooting
+
+### **🚨 Script `./scripts/start.sh` não executa**
+
+**Sintomas**: Erro "Permission denied" ou "Command not found"
+
+**Soluções:**
+```bash
+# 1. Verificar e corrigir permissões
+chmod +x scripts/start.sh
+ls -la scripts/start.sh  # Deve mostrar -rwxr-xr-x
+
+# 2. Verificar pré-requisitos
+docker --version           # Deve retornar versão do Docker
+docker compose version     # Deve retornar versão do Docker Compose
+
+# 3. Execução alternativa
+bash scripts/start.sh      # Forçar execução com bash
+
+# 4. Método manual se script falhar completamente
+docker-compose down        # Limpar estado anterior
+docker-compose build app  # Build da aplicação  
+docker-compose up -d       # Iniciar todos os serviços
+```
+
+### **🔧 Portas já em uso**
+
+**Sintomas**: Erro "Port already in use" durante inicialização
+
+**Soluções:**
+```bash
+# Verificar serviços nas portas
+lsof -i :3000  # Aplicação
+lsof -i :5672  # RabbitMQ  
+lsof -i :5432  # PostgreSQL
+lsof -i :15672 # RabbitMQ Management
+
+# Parar serviços conflitantes
+docker-compose down                    # Para containers
+sudo systemctl stop postgresql        # Para PostgreSQL local
+sudo systemctl stop rabbitmq-server   # Para RabbitMQ local
+
+# Reiniciar com script
+./scripts/start.sh
+```
+
+### **⚠️ Serviços não inicializam corretamente**
+
+**Sintomas**: Script completa mas serviços não respondem
+
+**Diagnóstico e soluções:**
+```bash
+# 1. Verificar status dos containers
+docker-compose ps
+# Todos devem estar "Up" e "healthy"
+
+# 2. Verificar logs de cada serviço
+docker-compose logs app      # Aplicação
+docker-compose logs rabbitmq # RabbitMQ
+docker-compose logs postgres # PostgreSQL
+
+# 3. Reiniciar serviços específicos
+docker-compose restart rabbitmq
+sleep 30  # Aguardar inicialização
+docker-compose restart app
+
+# 4. Reset completo se necessário
+docker-compose down -v  # Remove volumes também
+./scripts/start.sh       # Reinicia do zero
+```
 
 ### Problemas Comuns
 

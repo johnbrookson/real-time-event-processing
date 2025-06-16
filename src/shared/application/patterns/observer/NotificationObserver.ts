@@ -76,7 +76,7 @@ export class NotificationObserver implements EventObserver {
         await this.sendOrderCompletedNotification(event);
         break;
       default:
-        this.logger.debug(`No specific notification handler for event type: ${event.eventType}`);
+  
     }
   }
 

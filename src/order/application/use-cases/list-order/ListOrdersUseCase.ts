@@ -1,6 +1,4 @@
 import { IOrderRepository } from '@order/domain/repositories/IOrderRepository';
-import { Order } from '@order/domain/entities/Order';
-import { Money } from '@order/domain/value-objects/Money';
 import { ListOrdersDTO } from './ListOrdersDTO';
 import { OrderResponseDTO } from '@order/application/use-cases/create-order/OrderResponseDTO';
 import { Logger } from '@shared/application/logging/logger';
@@ -21,12 +19,12 @@ export class ListOrdersUseCase {
       this.logger.info('Orders found', { count: orders.length });
 
       // Return response
-      return orders.map((order: Order) => ({
+      return orders.map((order) => ({
         id: order.id,
         customerId: order.customerId,
         status: order.status,
         total: order.total.getValue(),
-        items: order.items.map((item: { productId: string; quantity: number; unitPrice: Money; totalPrice: Money }) => ({
+        items: order.items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
           unitPrice: item.unitPrice.getValue(),

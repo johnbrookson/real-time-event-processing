@@ -3,8 +3,9 @@ import { RetryMechanism } from '../retry/RetryMechanism';
 import { DomainEvent } from '../../domain/events/DomainEvent';
 import { EventId } from '../../domain/value-objects/EventId';
 import { MessageHandler } from './RabbitMQClient';
+import { IRetryableMessageHandler } from './IRetryableMessageHandler';
 
-export class RetryableMessageHandler implements MessageHandler {
+export class RetryableMessageHandler implements MessageHandler, IRetryableMessageHandler {
   private readonly logger: Logger;
   private readonly retryMechanism: RetryMechanism;
   private readonly baseHandler: MessageHandler;
@@ -50,10 +51,7 @@ export class RetryableMessageHandler implements MessageHandler {
         domainEvent
       );
 
-      this.logger.debug('✅ Message processed successfully with retry mechanism', {
-        eventType: message.eventType,
-        eventId: message.eventId
-      });
+
 
     } catch (error) {
       this.logger.error('❌ Message processing failed after all retry attempts', {

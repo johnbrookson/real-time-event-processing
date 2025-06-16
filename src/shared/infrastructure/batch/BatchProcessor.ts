@@ -75,7 +75,7 @@ export class BatchProcessor {
 
   private async processBatch(): Promise<void> {
     if (this.eventBatch.length === 0) {
-      this.logger.debug('No events in batch to process');
+
       return;
     }
 
@@ -109,21 +109,14 @@ export class BatchProcessor {
           return;
         }
 
-        this.logger.debug(`Processing event with strategy`, {
-          eventType: event.eventType,
-          eventId: event.eventId.value,
-          strategyName: strategy.getStrategyName()
-        });
+
 
         await strategy.process(event);
         batchSuccessCount++;
         this.successCount++;
         this.processedCount++;
 
-        this.logger.debug(`✅ Event processed successfully`, {
-          eventType: event.eventType,
-          eventId: event.eventId.value
-        });
+
 
       } catch (error) {
         batchErrorCount++;

@@ -1,10 +1,10 @@
 import { Order } from '../../domain/entities/Order';
 import { IOrderRepository } from '../../domain/repositories/IOrderRepository';
 import { OrderModel } from './OrderModel';
-import { OrderMapper } from '../mappers/OrderMapper';
+import { IOrderMapper } from '../mappers/IOrderMapper';
 
 export class PostgresOrderRepository implements IOrderRepository {
-  private orderMapper = new OrderMapper();
+  constructor(private readonly orderMapper: IOrderMapper) {}
 
   async save(order: Order): Promise<void> {
     try {

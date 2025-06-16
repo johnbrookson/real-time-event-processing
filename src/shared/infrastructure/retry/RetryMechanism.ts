@@ -35,12 +35,7 @@ export class RetryMechanism {
 
     for (let attempt = 1; attempt <= this.config.maxAttempts; attempt++) {
       try {
-        this.logger.debug(`🔄 Retry attempt ${attempt}/${this.config.maxAttempts}`, {
-          context,
-          attempt,
-          eventType: event?.eventType,
-          eventId: event?.eventId?.value
-        });
+
 
         return await operation();
       } catch (error) {

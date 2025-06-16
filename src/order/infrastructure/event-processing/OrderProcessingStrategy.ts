@@ -80,17 +80,7 @@ export class OrderProcessingStrategy implements ProcessingStrategy {
     // Step 1: Validate order data
     this.logger.info(`🔍 Step 1/5: Validating order data...`);
     
-    // Debug: Log the actual data values
-    this.logger.info(`🔍 DEBUG - Validation data:`, {
-      customerId: event.data.customerId,
-      customerIdType: typeof event.data.customerId,
-      customerIdIsNull: event.data.customerId === null,
-      total: event.data.total,
-      totalType: typeof event.data.total,
-      items: event.data.items,
-      itemsIsArray: Array.isArray(event.data.items),
-      itemsLength: event.data.items?.length
-    });
+
     
     // Check for invalid data that should trigger retry and DLQ
     if (!event.data.customerId || event.data.customerId === null) {
@@ -199,7 +189,6 @@ export class OrderProcessingStrategy implements ProcessingStrategy {
   }
 
   private async simulateProcessing(step: string, delay: number): Promise<void> {
-    this.logger.debug(`⏳ Simulating ${step}...`, { delay });
     await new Promise(resolve => setTimeout(resolve, delay));
   }
 

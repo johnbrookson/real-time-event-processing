@@ -10,6 +10,10 @@ import { RetryMechanism } from '../retry/RetryMechanism';
 import { AppConfig } from '../config/AppConfig';
 import { EventId } from '../../domain/value-objects/EventId';
 import { BatchFlushStrategy } from '../batch/BatchFlushStrategy';
+import { IEventProcessingSubject } from './IEventProcessingSubject';
+import { ICompositeMessageHandler } from '../messaging/ICompositeMessageHandler';
+import { IBatchFlushStrategy } from '../batch/IBatchFlushStrategy';
+import { IRetryableMessageHandler } from '../messaging/IRetryableMessageHandler';
 
 /**
  * Subject interface for the Observer Pattern
@@ -39,7 +43,7 @@ interface EventSubject {
 /**
  * Event Processing Subject implementing Observer Pattern
  */
-export class EventProcessingSubject implements EventSubject {
+export class EventProcessingSubject implements EventSubject, IEventProcessingSubject {
   private observers: EventObserver[] = [];
   private readonly logger: Logger;
 
@@ -66,7 +70,7 @@ export class EventProcessingSubject implements EventSubject {
     );
 
     if (interestedObservers.length === 0) {
-      this.logger.debug(`No observers interested in event: ${event.eventType}`);
+
       return;
     }
 
@@ -92,7 +96,7 @@ export class EventProcessingSubject implements EventSubject {
 /**
  * Composite Message Handler that orchestrates Strategy and Observer patterns
  */
-export class CompositeMessageHandler implements MessageHandler {
+export class CompositeMessageHandler implements MessageHandler, ICompositeMessageHandler {
   private readonly logger: Logger;
   private readonly batchProcessor: BatchProcessor;
   private readonly eventSubject: EventProcessingSubject;
@@ -165,14 +169,14 @@ export class CompositeMessageHandler implements MessageHandler {
 export class EventProcessingService {
   private readonly logger: Logger;
   private readonly batchProcessor: BatchProcessor;
-  private readonly eventSubject: EventProcessingSubject;
-  private readonly messageHandler: CompositeMessageHandler;
-  private readonly retryableMessageHandler: RetryableMessageHandler;
+  private readonly eventSubject: IEventProcessingSubject;
+  private readonly messageHandler: ICompositeMessageHandler;
+  private readonly retryableMessageHandler: IRetryableMessageHandler;
   private readonly notificationObserver: NotificationObserver;
   private readonly rabbitMQClient: RabbitMQClient;
   private readonly retryMechanism: RetryMechanism;
   private readonly config: AppConfig;
-  private readonly batchFlushStrategy: BatchFlushStrategy;
+  private readonly batchFlushStrategy: IBatchFlushStrategy;
 
   constructor(
     logger: Logger,
@@ -180,7 +184,11 @@ export class EventProcessingService {
     notificationObserver: NotificationObserver,
     rabbitMQClient: RabbitMQClient,
     retryMechanism: RetryMechanism,
-    config: AppConfig
+    config: AppConfig,
+    eventSubject: IEventProcessingSubject,
+    messageHandler: ICompositeMessageHandler,
+    batchFlushStrategy: IBatchFlushStrategy,
+    retryableMessageHandler: IRetryableMessageHandler
   ) {
     this.logger = logger;
     this.batchProcessor = batchProcessor;
@@ -188,24 +196,13 @@ export class EventProcessingService {
     this.rabbitMQClient = rabbitMQClient;
     this.retryMechanism = retryMechanism;
     this.config = config;
-    
-    this.eventSubject = new EventProcessingSubject(this.logger);
-    this.messageHandler = new CompositeMessageHandler(
-      this.logger,
-      this.batchProcessor,
-      this.eventSubject
-    );
+    this.eventSubject = eventSubject;
+    this.messageHandler = messageHandler;
+    this.batchFlushStrategy = batchFlushStrategy;
+    this.retryableMessageHandler = retryableMessageHandler;
 
-    // Initialize BatchFlushStrategy
-    this.batchFlushStrategy = new BatchFlushStrategy(logger);
+    // Register batch flush strategy
     this.batchProcessor.registerStrategy('BatchFlush', this.batchFlushStrategy);
-
-    // Wrap the composite handler with retry mechanism
-    this.retryableMessageHandler = new RetryableMessageHandler(
-      this.logger,
-      this.retryMechanism,
-      this.messageHandler
-    );
 
     this.setupObservers();
   }
@@ -285,7 +282,7 @@ export class EventProcessingService {
     // Flush batches every 30 seconds
     setInterval(async () => {
       try {
-        this.logger.debug('Flushing pending batches');
+
         // Trigger batch processing by adding a dummy event
         await this.batchProcessor.addEvent({
           eventType: 'BatchFlush',
@@ -295,7 +292,7 @@ export class EventProcessingService {
           occurredOn: new Date(),
           version: 1
         });
-        this.logger.debug('Batch flush completed');
+        
       } catch (error) {
         this.logger.error('Error during scheduled batch processing', { error });
       }
@@ -323,7 +320,7 @@ export class EventProcessingService {
     this.logger.info('Graceful shutdown handlers configured');
   }
 
-  getMessageHandler(): CompositeMessageHandler {
+  getMessageHandler(): ICompositeMessageHandler {
     return this.messageHandler;
   }
 

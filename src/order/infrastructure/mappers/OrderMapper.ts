@@ -3,8 +3,9 @@ import { OrderModel } from '../persistence/OrderModel';
 import { Money } from '../../domain/value-objects/Money';
 import { Address } from '../../domain/value-objects/Address';
 import { OrderItem } from '../../domain/value-objects/OrderItem';
+import { IOrderMapper } from './IOrderMapper';
 
-export class OrderMapper {
+export class OrderMapper implements IOrderMapper {
   toDomain(model: OrderModel): Order {
     // Create value objects from raw data
     const total = new Money(model.total);

@@ -1,5 +1,4 @@
 import { IOrderRepository } from '@order/domain/repositories/IOrderRepository';
-import { Order } from '@order/domain/entities/Order';
 import { GetOrderDTO } from './GetOrderDTO';
 import { OrderResponseDTO } from '@order/application/use-cases/create-order/OrderResponseDTO';
 import { Logger } from '@shared/application/logging/logger';

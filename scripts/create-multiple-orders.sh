@@ -5,8 +5,8 @@
 
 set -e
 
-# Default number of orders to create
-NUM_ORDERS=${1:-5}
+# Default number of orders to create (optimal for demo)
+NUM_ORDERS=${1:-7}
 
 echo "🛍️ Simulando criação de ${NUM_ORDERS} ordens para demonstrar batch processing..."
 

@@ -1,6 +1,5 @@
 import { IOrderRepository } from '@order/domain/repositories/IOrderRepository';
 import { IOrderEventPublisher } from '@order/domain/repositories/IOrderEventPublisher';
-import { Order } from '@order/domain/entities/Order';
 import { CancelOrderDTO } from './CancelOrderDTO';
 import { OrderResponseDTO } from '@order/application/use-cases/create-order/OrderResponseDTO';
 import { Logger } from '@shared/application/logging/logger';

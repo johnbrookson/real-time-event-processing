@@ -7,7 +7,6 @@ import { OrderItem } from '@order/domain/value-objects/OrderItem';
 import { CreateOrderDTO } from './CreateOrderDTO';
 import { OrderResponseDTO } from './OrderResponseDTO';
 import { Logger } from '@shared/application/logging/logger';
-import { OrderCreatedEvent } from '@order/domain/events/OrderCreatedEvent';
 
 export class CreateOrderUseCase {
   constructor(
@@ -43,6 +42,9 @@ export class CreateOrderUseCase {
         shippingAddress,
         billingAddress
       });
+
+      // Create order (triggers domain events)
+      order.create();
 
       // Save order
       await this.orderRepository.save(order);
